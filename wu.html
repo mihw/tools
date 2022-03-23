@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<body>
+    <form name="inputForm">
+        <table>
+            <tr>
+                <td>before</td>
+                <td>after</td>
+            <tr>
+                <td><textarea name="before" rows="5">JavaScriptかJSか？</textarea></td>
+                <td><textarea name="after" rows="5">JSはJavascriptのことか？</textarea></td>
+        </table>
+    </form>
+    <input type="submit" id="submit" value="差分抽出">
+    <div id="result"></div>
+</body>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+<script>
+
+    function onClickSubmit() {
+        var before = document.inputForm.before.value;
+        var after = document.inputForm.after.value;
+        var div = document.getElementById('result');
+        div.innerHTML = formatDiffHtml(before, after, onp(before, after));
+    }
+
+    function onp(A, B) {
+        var M = A.length;
+        var N = B.length;
+
+        if (N < M) {
+            var result = onp(B, A);
+            for (var i = 0; i < result.point.length; i++) {
+                result.point[i] = result.point[i].reverse();
+            }
+            return result;
+        }
+
+        var offset = M + 1;
+        var delta = N - M;
+        var fp = [];
+        for (var i = 0; i < M + N + 3; i++) {
+            fp.push({ score: -1, point: [] });
+        }
+
+        for (var p = 0; p <= M; p++) {
+            // -p <= k <= delta - 1
+            for (var k = -p; k <= delta - 1; k++) {
+                var score1 = fp[k - 1 + offset].score + 1;
+                var score2 = fp[k + 1 + offset].score;
+                if (score1 < score2) {
+                    var temp = snake(A, B, k, score2);
+                    fp[k + offset].score = temp.score;
+                    fp[k + offset].point = fp[k + 1 + offset].point.concat(temp.data);
+                }
+                else {
+                    var temp = snake(A, B, k, score1);
+                    fp[k + offset].score = temp.score;
+                    fp[k + offset].point = fp[k - 1 + offset].point.concat(temp.data);
+                }
+            }
+            // delta + 1 <= k <= delta + p
+            for (var k = p + delta; k >= delta + 1; k--) {
+                var score1 = fp[k - 1 + offset].score + 1;
+                var score2 = fp[k + 1 + offset].score;
+                if (score1 < score2) {
+                    var temp = snake(A, B, k, score2);
+                    fp[k + offset].score = temp.score;
+                    fp[k + offset].point = fp[k + 1 + offset].point.concat(temp.data);
+                }
+                else {
+                    var temp = snake(A, B, k, score1);
+                    fp[k + offset].score = temp.score;
+                    fp[k + offset].point = fp[k - 1 + offset].point.concat(temp.data);
+                }
+            }
+            // d.delta == k
+            {
+                var k = delta;
+                var score1 = fp[k - 1 + offset].score + 1;
+                var score2 = fp[k + 1 + offset].score;
+                if (score1 < score2) {
+                    var temp = snake(A, B, k, score2);
+                    fp[k + offset].score = temp.score;
+                    fp[k + offset].point = fp[k + 1 + offset].point.concat(temp.data);
+                }
+                else {
+                    var temp = snake(A, B, k, score1);
+                    fp[k + offset].score = temp.score;
+                    fp[k + offset].point = fp[k - 1 + offset].point.concat(temp.data);
+                }
+            }
+            if (fp[delta + offset].score == N) {
+                return { score: delta + 2 * p, point: fp[delta + offset].point };
+            }
+        }
+        return { score: delta + 2 * p, point: fp[delta + offset].point };
+    }
+
+    function snake(A, B, k, y) {
+        var x = y - k;
+        var data = [];
+        while (x < A.length && y < B.length && A[x] == B[y]) {
+            data.push([x, y]);
+            x++;
+            y++;
+        }
+        return { score: y, data: data };
+    }
+
+    function formatDiffHtml(before, after, result) {
+        console.log(JSON.stringify(result));
+        const INSERT_BEGIN = '<font color="red">';
+        const INSERT_END = '</font>';
+        const DELETE_BEGIN = '<font color="gray">';
+        const DELETE_END = '</font>';
+        var string = '';
+        var point = result.point;
+        var index = [0, 0];
+        for (var i = 0; i < point.length; i++) {
+            if (index[1] < point[i][1]) {
+                string += INSERT_BEGIN;
+                while (index[1] < point[i][1]) {
+                    string += after[index[1]];
+                    index[1]++;
+                }
+                string += INSERT_END;
+            }
+            if (index[0] < point[i][0]) {
+                string += DELETE_BEGIN;
+                while (index[0] < point[i][0]) {
+                    string += before[index[0]];
+                    index[0]++;
+                }
+                string += DELETE_END;
+            }
+            string += before[point[i][0]];
+            index[0]++;
+            index[1]++;
+        }
+        if (index[1] < after.length) {
+            string += INSERT_BEGIN;
+            while (index[1] < after.length) {
+                string += after[index[1]];
+                index[1]++;
+            }
+            string += INSERT_END;
+        }
+        if (index[0] < before.length) {
+            string += DELETE_BEGIN;
+            while (index[0] < before.length) {
+                string += before[index[0]];
+                index[0]++;
+            }
+            string += DELETE_END;
+        }
+
+        return string.replaceAll('\n', '<br>');
+
+    }
+
+    document.getElementById('submit').addEventListener("click", onClickSubmit);
+</script>
+
+</html>
